@@ -1,36 +1,88 @@
+ 
 canvas = this.document.getElementById("idée");
 var ctx = canvas.getContext("2d");
 window.addEventListener('DOMContentLoaded', function() {
     draw_all();
 });
 
+var turn = 1;
+var chosed;
+var last_elem = [];
+
 document.getElementById("idée").addEventListener("click", function() {
-    draw_all()
-        var pos_list = [];
-        size = 100;
-        coord =[~~((event.pageY - 100) / 100), ~~((event.pageX - 550) / 100)];
-        if (map[coord[0]][coord[1]] != null) {
-            pos_list = map[coord[0]][coord[1]].findAllMvt();
+    draw_all();
+    size = 100;
+    coord =[~~((event.pageY - 100) / 100), ~~((event.pageX - 550) / 100)];
+    var this_pos = [];
+    if (last_elem.length > 0) {
+        last_elem.forEach(elem => {
+            if (elem[0] == coord[0] && elem[1] == coord[1]) {
+                map[coord[0]][coord[1]] = chosed;
+                map[chosed.position[0]][chosed.position[1]] = null;
+                chosed.position[0] = coord[0];
+                chosed.position[1] = coord[1];
+                draw_all();
+                if (chosed.constructor.name == "Pawn") {
+                    chosed.nb_mvt = 1;
+                }
+                turn *= -1
+            }
+        });
+        last_elem = [];
+    } else {
+        if (map[coord[0]][coord[1]] != null && map[coord[0]][coord[1]].color == turn) {
+            this_pos = map[coord[0]][coord[1]].findAllMvt();
+            this_pos = map[coord[0]][coord[1]].check_fine(this_pos);
         }
-        if (pos_list.length > 0) {
-            pos_list.forEach(elem => {
+        if (this_pos.length > 0) {
+            chosed = map[coord[0]][coord[1]];
+            this_pos.forEach(elem => {
                 ctx = canvas.getContext("2d");
                 ctx.fillStyle = "#ee1111aa";
                 ctx.fillRect(elem[1] * size, elem[0] * size, size, size);
             });
         }
-    });
+        last_elem = this_pos;
+    }
+});
+
 
 var map = [[null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null],
+[null, null, null, null, null, null, null, null],
+[null, null, null, null, null, null, null, null],
+[null, null, null, null, null, null, null, null],
+[null, null, null, null, null, null, null, null],
+[null, null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null]];
 const indexes = [0, 1, 2, 3, 4, 5, 6, 7];
 
+function in_check(pos, color, t_map) {
+    var allPos = [];
+    for (let x = 0; x < 8; x++) {
+        for (let y = 0; y < 8; y++) {
+            if (t_map[x][y] != null && t_map[x][y].color != color) {
+                allPos = t_map[x][y].findAllMvt();
+            }
+            for (var i = 0; i < allPos.length; i++) {
+                if (allPos[i][0] == pos[0] && allPos[i][1] == pos[1]) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function find_king(map, color) {
+    for (let i= 0; i < map.length; i++) {
+        for (let j = 0; j < map.length; j++) {
+            if (map[i][j] && map[i][j].constructor.name == "King" && map[i][j].color == color) {
+                return (map[i][j].position);
+            }
+        }
+    }
+}
 
 function draw_all() {
     var size = 100;
@@ -70,6 +122,28 @@ class Pieces {
         img.src = this.img;
         ctx.drawImage(img, this.position[1] * 100, this.position[0] * 100, 95, 95);
     }
+
+    check_fine(allPos) {
+        var new_map;
+    
+        for (let i = 0; i < allPos.length; i++) {
+            new_map = copy_map(map);
+            map[allPos[i][0]][allPos[i][1]] = Object.assign({}, this);
+            Object.setPrototypeOf(map[allPos[i][0]][allPos[i][1]], this.constructor.prototype);
+            map[allPos[i][0]][allPos[i][1]].position = allPos[i];
+            map[this.position[0]][this.position[1]] = null;
+            if (in_check(find_king(map, this.color), this.color, map)) {
+                allPos.splice(i, 1);
+                --i;
+            }
+            map = new_map;
+        }
+        return(allPos);
+    }
+
+    move_piece(pos) {
+
+    } 
 }
 
 class Tower extends Pieces {
@@ -119,15 +193,15 @@ class Bishop extends Pieces {
                 test = indexes.includes(all_elt[j][0] + all_elt[j][2]);
                 test2 = indexes.includes(all_elt[j][1] + all_elt[j][3]);
                 if (test && test2 && map[all_elt[j][0] + all_elt[j][2]][all_elt[j][1] + all_elt[j][3]] == null) {
-                    allPos[allPos.length] = [all_elt[j][0] + all_elt[j][2], all_elt[j][1] + all_elt[j][3]];
+                    allPos.push([all_elt[j][0] + all_elt[j][2], all_elt[j][1] + all_elt[j][3]]);
                     all_elt[j][0] += all_elt[j][2];
                     all_elt[j][1] += all_elt[j][3];
                     continue;
                 }
                 break;
             }
-            if (test && test2 && map[all_elt[j][0] + all_elt[j][2]][all_elt[j][1] + all_elt[j][3]] && map[all_elt[j][0] + all_elt[j][2]][all_elt[j][1] + all_elt[j][3]].color == this.color * -1)
-                allPos[allPos.length] = [all_elt[j][0] + all_elt[j][2], all_elt[j][1] + all_elt[j][3]];
+            if (test && test2 && map[all_elt[j][0] + all_elt[j][2]][all_elt[j][1] + all_elt[j][3]] && map[all_elt[j][0] + all_elt[j][2]][all_elt[j][1] + all_elt[j][3]].color != this.color)
+                allPos.push([all_elt[j][0] + all_elt[j][2], all_elt[j][1] + all_elt[j][3]]);
         }
         return allPos;
     }
@@ -277,10 +351,33 @@ all_init.forEach(element => {
 
 for (var i = 0; i != 8; i++) {
     map[1][i] = new Pawn([1, i], -1, 0, "pieces/pion_n.svg");
-    //map[6][i] = new Pawn([6, i], 1, 0, "pieces/pion_b.svg");
+    map[6][i] = new Pawn([6, i], 1, 0, "pieces/pion_b.svg");
 }
 
+function copy_map(map) {
+    var new_map = [[null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null]];
+    for (var i = 0; i != map.length; i++) {
+        for (var j = 0; j != map.length; j++) {
+            new_map[i][j] = map[i][j];
+        }
+    }
+    return (new_map);
+}
+/*map[1][3] = new Bishop([1, 3], -1, "pieces/fou_n.svg");
+map[4][1] = new Bishop([4, 1], -1, "pieces/fou_n.svg");
 map[4][0] = new Bishop([4, 0], 1, "pieces/fou_b.svg");
+map[6][4] = new Tower([6, 4], 1, 0, "pieces/tour_b.svg");
+*/
+
+//console.log(in_check([0,4], -1, map));
+
 
 /*
 for (var i = 0; i != 8; i++) {
@@ -290,5 +387,4 @@ for (var i = 0; i != 8; i++) {
         var all_pos = map[i][j].findAllMvt();
         console.log("l'élément à la posotion", map[i][j].position, "à", all_pos.length, "mouvement possible", all_pos);
     }
-}
-*/
+}*/
